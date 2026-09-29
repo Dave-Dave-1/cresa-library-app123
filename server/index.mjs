@@ -9,7 +9,6 @@ import { createSessionToken, createVerificationCode, hashPassword, hashValue, ma
 const DEFAULT_PORT = Number(process.env.PORT ?? 3001)
 const CODE_TTL_MINUTES = 10
 const SESSION_TTL_DAYS = 7
-const allowedOrigin = process.env.CLIENT_ORIGIN ?? 'http://localhost:5173'
 const serverDirectory = dirname(fileURLToPath(import.meta.url))
 
 const getAvailablePort = async (startPort = DEFAULT_PORT) => {
@@ -34,17 +33,12 @@ const getAvailablePort = async (startPort = DEFAULT_PORT) => {
     tester.listen(startPort, '0.0.0.0')
   })
 }
-// Allow the storage location to be overridden with BOOKS_DIR (absolute path) for deployments
-// where the "public/books" folder isn't a sibling of the server folder. Defaults to the
-// original convention: <project-root>/public/books, where <project-root> is one level above /server.
+
 const booksDirectory = resolve(process.env.BOOKS_DIR ?? join(serverDirectory, '..', 'public', 'books'))
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
-// The model remains configurable through GEMINI_MODEL for provider-side availability.
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.5-flash-lite'
 const notificationClients = new Map()
 
-// Fail loudly at boot if the book storage folder is missing or empty, instead of only
-// discovering it later as a mysterious "no data" error in the reader UI.
 function reportBooksDirectoryStatus() {
   if (!existsSync(booksDirectory)) {
     console.error(`[books] MISSING: the book storage folder does not exist at: ${booksDirectory}`)
@@ -62,13 +56,29 @@ function reportBooksDirectoryStatus() {
   if (emptyFiles.length) console.warn(`[books] WARNING: ${emptyFiles.length} file(s) in that folder are 0 bytes and will fail to open: ${emptyFiles.join(', ')}`)
 }
 
-const json = (response, status, body) => {
+const getOrigin = (request) => {
+  const reqOrigin = request?.headers?.origin
+  if (reqOrigin) return reqOrigin
+  let configured = process.env.CLIENT_ORIGIN
+  if (!configured || configured === '*') return '*'
+  if (!configured.startsWith('http://') && !configured.startsWith('https://')) {
+    configured = `https://${configured}`
+  }
+  return configured
+}
+
+const corsHeaders = (request) => ({
+  'Access-Control-Allow-Origin': getOrigin(request),
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Range, Accept, X-Requested-With',
+  'Access-Control-Allow-Methods': 'GET, HEAD, POST, PATCH, DELETE, OPTIONS',
+  'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Length, Content-Range',
+})
+
+const json = (response, status, body, request) => {
   response.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store, private',
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Range, Accept',
-    'Access-Control-Allow-Methods': 'GET, HEAD, POST, PATCH, DELETE, OPTIONS',
+    ...corsHeaders(request),
   })
   response.end(JSON.stringify(body))
 }
@@ -528,7 +538,12 @@ async function notifyCommunityUser(userId, actorId, type, message, entityId) {
 async function streamNotifications(request, response) {
   const user = await requireActiveUser(request, response)
   if (!user) return
-  response.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-store', Connection: 'keep-alive', 'Access-Control-Allow-Origin': allowedOrigin })
+  response.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-cache, no-store',
+    Connection: 'keep-alive',
+    ...corsHeaders(request),
+  })
   response.write(': connected\n\n')
   const clients = notificationClients.get(user.id) ?? []
   clients.push(response); notificationClients.set(user.id, clients)
@@ -1048,11 +1063,16 @@ async function askGemini(request, response) {
 }
 
 const server = createServer(async (request, response) => {
+    if (request.method === 'OPTIONS') {
+      response.writeHead(204, {
+        ...corsHeaders(request),
+        'Access-Control-Max-Age': '86400',
+      })
+      return response.end()
+    }
     const bookMatch = request.url?.match(/^\/api\/books\/([^/?#]+)$/)
     const readerStreamMatch = request.url?.match(/^\/api\/reader-content\/([A-Za-z0-9_-]+)$/)
     const readerChunkMatch = request.url?.match(/^\/api\/reader-chunks\/([A-Za-z0-9_-]+)(?:\?([^#]*))?$/)
-    if (request.method === 'OPTIONS' && (bookMatch || readerStreamMatch || readerChunkMatch)) return bookPreflight(response)
-    if (request.method === 'OPTIONS') return json(response, 204, {})
     if (request.method === 'GET' && request.url === '/api/books-status') return reportBooksStatus(request, response)
     if ((request.method === 'GET' || request.method === 'HEAD') && bookMatch) return streamBook(request, response, bookMatch[1])
     if (request.method === 'GET' && readerChunkMatch) return readBookChunkForReader(response, readerChunkMatch[1], new URLSearchParams(readerChunkMatch[2] ?? ''))
