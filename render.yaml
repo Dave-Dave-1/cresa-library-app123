@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: cresa-library-api
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: node server/index.mjs
+    healthCheckPath: /api/books-status
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cresa-library-db
+          property: connectionString
+      - key: PORT
+        value: 3001
+      - key: CLIENT_ORIGIN
+        sync: false   # Set to your Render static-site URL, e.g. https://cresa-library.onrender.com
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash-latest
+      - key: BOOKS_DIR
+        value: /opt/render/project/src/public/books
+
+databases:
+  - name: cresa-library-db
+    databaseName: cresa_library
+    user: cresa_app
+    plan: free
+    region: oregon
