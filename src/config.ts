@@ -1,4 +1,6 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'https://cresa-library-app123.onrender.com'
+/// <reference types="vite/client" />
+
+export const API_BASE_URL = (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? 'https://cresa-library-app123.onrender.com'
 
 export function apiUrl(path: string): string {
   if (path.startsWith('http://') || path.startsWith('https://')) return path

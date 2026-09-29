@@ -144,9 +144,10 @@ export function TeamPage({ go }: { go: (page: Page) => void }) {
                 </div>
               </article>
             </Reveal>
-          ))}
-        </div>
-      </section>
+          </div>
+        ))}
+      </div>
+    </section>
 
       {/* ── Mission Callout ── */}
       <Reveal className="team-mission-card">
