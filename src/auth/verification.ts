@@ -1,7 +1,9 @@
+import { apiUrl } from '../config'
+
 type VerificationResponse = { ok: boolean; error?: string }
 
 const request = async (path: string, body: Record<string, string>): Promise<VerificationResponse> => {
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

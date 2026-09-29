@@ -4,6 +4,7 @@ import type { AuthUser } from '../auth/store'
 import type { IconName } from '../types'
 import { Icon, PageIntro } from '../components/ui'
 import { AdminResourcesPage } from './AdminResourcesPage'
+import { apiUrl } from '../config'
 
 type Dashboard = { metrics: { totalUsers: number; activeUsers: number; published: number; drafts: number; archived: number; aiRequests: number; activeReaders: number; averageProgress: number }; registrations: { name: string; role: string; createdAt: string }[]; uploads: { title: string; status: string; createdAt: string }[]; failedProcessing: { title: string; status: string; updatedAt: string }[] }
 type StudentForm = { name: string; identifier: string; course: string; password: string }
@@ -45,7 +46,7 @@ export function LecturerDashboardPage({ setToast, user, token, onManageResources
     setLoading(true)
     const [usersResult, dashboardResult] = await Promise.all([
       api.listUsers(token),
-      fetch('/api/admin/dashboard?days=30', { headers: { Authorization: `Bearer ${token}` } }).then(response => response.json()),
+      fetch(apiUrl('/api/admin/dashboard?days=30'), { headers: { Authorization: `Bearer ${token}` } }).then(response => response.json()),
     ])
     setLoading(false)
     if (!usersResult.ok) setToast(usersResult.error)

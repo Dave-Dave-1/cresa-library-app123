@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
 
-const apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'http://10.96.165.217:3001');
+const apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://cresa-library-app123.onrender.com');
 
 class ApiResult<T> {
   const ApiResult.success(this.data) : error = null;

@@ -3,6 +3,7 @@ import mammoth from 'mammoth'
 import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from 'pdfjs-dist'
 import type { Resource } from '../types'
 import { Icon } from '../components/ui'
+import { apiUrl } from '../config'
 import {
   getStoredAnnotations,
   saveAnnotation,
@@ -130,7 +131,7 @@ export function ReaderPage({ resource, onExit, setToast, initialPage, aiEnabled,
     // development server is opened from another device on the local network.
     // Vite proxies this route to the book server in development.
     if (!filename || !resource.downloadUrl.startsWith('/books/')) return null
-    return `/api/books/${encodeURIComponent(filename)}`
+    return apiUrl(`/api/books/${encodeURIComponent(filename)}`)
   }, [resource.downloadUrl])
 
   const readerDataUrl = useMemo(() => {
@@ -140,7 +141,7 @@ export function ReaderPage({ resource, onExit, setToast, initialPage, aiEnabled,
     // the chunk endpoint avoids that and remains relative to the current host.
     if (!isPdf || !filename || !resource.downloadUrl.startsWith('/books/')) return null
     const token = btoa(filename).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
-    return `/api/reader-chunks/${token}`
+    return apiUrl(`/api/reader-chunks/${token}`)
   }, [isPdf, resource.downloadUrl])
 
   const pdfViewerSource = readerDataUrl ?? resource.downloadUrl

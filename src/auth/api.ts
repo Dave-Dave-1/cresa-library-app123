@@ -1,11 +1,12 @@
 import type { AuthUser, Role } from './store'
+import { apiUrl } from '../config'
 
 type Result<T> = { ok: true; data: T } | { ok: false; error: string }
 type ApiUser = AuthUser & { profile?: AuthUser['profile'] }
 
 const request = async <T>(path: string, options: RequestInit = {}): Promise<Result<T>> => {
   try {
-    const response = await fetch(path, {
+    const response = await fetch(apiUrl(path), {
       ...options,
       headers: { 'Content-Type': 'application/json', ...options.headers },
     })

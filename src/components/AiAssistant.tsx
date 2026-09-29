@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Resource } from '../types'
 import { Icon } from './ui'
 import { createId } from '../utils/id'
+import { apiUrl } from '../config'
 
 type Message = { id: string; role: 'user' | 'assistant'; content: string; context?: string }
 type Conversation = { id: string; title: string; messages: Message[]; updatedAt: string }
@@ -23,7 +24,7 @@ export function AiAssistant({ token, resource, page, compact = false, saveHistor
     if (!saveHistory || !token) { setConversations([]); setActiveId(null); setLoadingHistory(false); return }
     let cancelled = false
     setLoadingHistory(true)
-    fetch('/api/ai/conversations', { headers: authorization })
+    fetch(apiUrl('/api/ai/conversations'), { headers: authorization })
       .then(response => response.json() as Promise<HistoryPayload>)
       .then(data => { if (cancelled) return; if (!data.ok) throw new Error(data.error ?? 'Could not load chat history.'); const history = data.enabled ? data.conversations ?? [] : []; setConversations(history); setActiveId(history[0]?.id ?? null) })
       .catch(error => { if (!cancelled) setNotice(error instanceof Error ? error.message : 'Could not load chat history.') })
@@ -53,20 +54,20 @@ export function AiAssistant({ token, resource, page, compact = false, saveHistor
     update(conversation.id, userMessage); setPrompt(''); setBusy(true); setNotice('')
     const controller = new AbortController(); aborter.current = controller
     try {
-      const response = await fetch('/api/ai/chat', { method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json', ...authorization }, body: JSON.stringify({ prompt: question, conversationId: saveHistory ? conversation.id : undefined, messages: saveHistory ? undefined : conversation.messages.slice(-8), resource: resource ? { title: resource.title, courseCode: resource.courseCode, page } : undefined }) })
+      const response = await fetch(apiUrl('/api/ai/chat'), { method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json', ...authorization }, body: JSON.stringify({ prompt: question, conversationId: saveHistory ? conversation.id : undefined, messages: saveHistory ? undefined : conversation.messages.slice(-8), resource: resource ? { title: resource.title, courseCode: resource.courseCode, page } : undefined }) })
       const payload = await response.json() as { ok?: boolean; answer?: string; error?: string; context?: string; conversationId?: string | null }
       if (!response.ok || !payload.ok || !payload.answer) throw new Error(payload.error ?? 'The AI assistant could not answer right now.')
       update(conversation.id, { id: createId(), role: 'assistant', content: payload.answer, context: payload.context })
     } catch (error) { if ((error as Error).name !== 'AbortError') setNotice((error as Error).message) } finally { aborter.current = null; setBusy(false) }
   }
   const remove = async (id: string) => {
-    if (saveHistory && token) { const response = await fetch(`/api/ai/conversations/${id}`, { method: 'DELETE', headers: authorization }); if (!response.ok) return setNotice('Could not delete this conversation.') }
+    if (saveHistory && token) { const response = await fetch(apiUrl(`/api/ai/conversations/${id}`), { method: 'DELETE', headers: authorization }); if (!response.ok) return setNotice('Could not delete this conversation.') }
     setConversations(current => current.filter(item => item.id !== id)); if (activeId === id) setActiveId(null)
   }
   const rename = async (conversation: Conversation) => {
     const title = window.prompt('Name this conversation', conversation.title)?.trim()
     if (!title) return
-    if (saveHistory && token) { const response = await fetch(`/api/ai/conversations/${conversation.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authorization }, body: JSON.stringify({ title }) }); if (!response.ok) return setNotice('Could not rename this conversation.') }
+    if (saveHistory && token) { const response = await fetch(apiUrl(`/api/ai/conversations/${conversation.id}`), { method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authorization }, body: JSON.stringify({ title }) }); if (!response.ok) return setNotice('Could not rename this conversation.') }
     setConversations(current => current.map(item => item.id === conversation.id ? { ...item, title: title.slice(0, 120) } : item))
   }
   const copy = async (text: string) => { await navigator.clipboard?.writeText(text); setNotice('Response copied.') }

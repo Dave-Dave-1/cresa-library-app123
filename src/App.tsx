@@ -22,6 +22,7 @@ import { api, type NotificationItem } from './auth/api'
 import { getReadingActivity, upsertReadingActivity, type ReadingActivity } from './data/readingActivity'
 import { WelcomeModal } from './components/WelcomeModal'
 import { getRouteHash, parseRoute, persistRoute, getStoredRoute } from './navigation'
+import { apiUrl } from './config'
 
 const navigation: { label: Exclude<Page, 'Resource details' | 'Reader'>; icon: IconName }[] = [
   { label: 'Overview', icon: 'grid' },
@@ -167,7 +168,7 @@ export default function App() {
     if (!token || user?.profile?.notificationsEnabled === false) { setUnreadNotifications(0); setUnreadCommunity(0); return }
     let stream: EventSource | null = null
     void api.notifications(token).then(result => { if (result.ok) { setNotifications(result.data.notifications); setUnreadNotifications(result.data.unread); setUnreadCommunity(result.data.communityUnread) } })
-    stream = new EventSource(`/api/notifications/stream?token=${encodeURIComponent(token)}`)
+    stream = new EventSource(apiUrl(`/api/notifications/stream?token=${encodeURIComponent(token)}`))
     stream.addEventListener('notification', event => { const notification = JSON.parse((event as MessageEvent).data) as NotificationItem; setNotifications(current => [notification, ...current].slice(0, 30)); setUnreadNotifications(current => current + 1); if (['comment', 'reaction', 'mention'].includes(notification.type)) setUnreadCommunity(current => current + 1) })
     return () => stream?.close()
   }, [user?.id, user?.profile?.notificationsEnabled])

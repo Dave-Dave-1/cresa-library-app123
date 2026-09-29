@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Icon, PageIntro } from '../components/ui'
 import type { IconName } from '../types'
+import { apiUrl } from '../config'
 
 type Status = 'draft' | 'published' | 'archived'
 type AdminResource = { id: string; title: string; author: string; description: string | null; resourceType: string; category: string | null; subject: string | null; course: string | null; tags: string[] | string | null; publicationYear: number | null; filePath: string | null; pageCount: number | null; status: Status; createdAt: string; updatedAt: string }
@@ -22,7 +23,7 @@ export function AdminResourcesPage({ token, setToast }: { token: string | null; 
   const [selected, setSelected] = useState<string[]>([]); const [editing, setEditing] = useState<AdminResource | null>(null); const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<Form>(blank); const [file, setFile] = useState<File | null>(null); const [busy, setBusy] = useState(false); const [progress, setProgress] = useState<number | null>(null); const [audit, setAudit] = useState<{ action: string; createdAt: string }[]>([])
   const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : {}
-  const request = async <T,>(url: string, init?: RequestInit) => { const response = await fetch(url, { ...init, headers: { ...headers, ...(init?.headers ?? {}) } }); const body = await response.json().catch(() => ({})); if (!response.ok || !body.ok) throw new Error(body.error ?? 'Request failed.'); return body as T }
+  const request = async <T,>(url: string, init?: RequestInit) => { const response = await fetch(apiUrl(url), { ...init, headers: { ...headers, ...(init?.headers ?? {}) } }); const body = await response.json().catch(() => ({})); if (!response.ok || !body.ok) throw new Error(body.error ?? 'Request failed.'); return body as T }
   const load = async () => {
     if (!token) return
     try { const params = new URLSearchParams(); if (query) params.set('q', query); if (status !== 'all') params.set('status', status); if (category) params.set('category', category); if (dateFrom) params.set('from', dateFrom); if (dateTo) params.set('to', dateTo); const [metrics, catalog] = await Promise.all([request<Dashboard>(`/api/admin/dashboard?days=${rangeDays}`), request<{ resources: AdminResource[] }>(`/api/admin/resources?${params}`)]); setDashboard(metrics); setItems(catalog.resources) } catch (error) { setToast(error instanceof Error ? error.message : 'Could not load administration data.') }
@@ -35,7 +36,7 @@ export function AdminResourcesPage({ token, setToast }: { token: string | null; 
     setForm(item ? { title: item.title, author: item.author, description: item.description ?? '', category: item.category ?? '', subject: item.subject ?? '', course: item.course ?? '', tags: Array.isArray(item.tags) ? item.tags.join(', ') : item.tags ?? '', resourceType: item.resourceType, publicationYear: String(item.publicationYear ?? ''), pageCount: String(item.pageCount ?? ''), status: item.status } : blank)
     if (item) void request<{ history: { action: string; createdAt: string }[] }>(`/api/admin/resources/${item.id}/audit`).then(result => setAudit(result.history)).catch(() => setAudit([]))
   }
-  const upload = (url: string, method: 'POST' | 'PATCH', payload: Record<string, unknown>) => new Promise<void>((resolve, reject) => { const xhr = new XMLHttpRequest(); xhr.open(method, url); if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`); xhr.setRequestHeader('Content-Type', 'application/json'); xhr.upload.onprogress = event => { if (event.lengthComputable) setProgress(Math.round(event.loaded / event.total * 100)) }; xhr.onerror = () => reject(new Error('The file upload could not reach the server.')); xhr.onload = () => { const result = JSON.parse(xhr.responseText || '{}'); xhr.status >= 200 && xhr.status < 300 && result.ok ? resolve() : reject(new Error(result.error ?? 'The file upload failed.')) }; xhr.send(JSON.stringify(payload)) })
+  const upload = (url: string, method: 'POST' | 'PATCH', payload: Record<string, unknown>) => new Promise<void>((resolve, reject) => { const xhr = new XMLHttpRequest(); xhr.open(method, apiUrl(url)); if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`); xhr.setRequestHeader('Content-Type', 'application/json'); xhr.upload.onprogress = event => { if (event.lengthComputable) setProgress(Math.round(event.loaded / event.total * 100)) }; xhr.onerror = () => reject(new Error('The file upload could not reach the server.')); xhr.onload = () => { const result = JSON.parse(xhr.responseText || '{}'); xhr.status >= 200 && xhr.status < 300 && result.ok ? resolve() : reject(new Error(result.error ?? 'The file upload failed.')) }; xhr.send(JSON.stringify(payload)) })
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); if (!token) return
     if (file && (file.type !== 'application/pdf' || file.size > 50 * 1024 * 1024)) return setToast('Choose a PDF no larger than 50 MB.')

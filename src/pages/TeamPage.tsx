@@ -87,25 +87,26 @@ export function TeamPage({ go }: { go: (page: Page) => void }) {
       <section className="team-grid-section">
         <div className="team-grid">
           {TEAM_MEMBERS.map((member, idx) => (
-            <Reveal key={member.name} delay={idx * 120}>
-              <article className="team-card team-card--full">
-                <div className="team-card-ambient" aria-hidden="true" style={{ background: member.avatarGradient }} />
+            <div key={member.name} className="team-card-wrapper">
+              <Reveal delay={idx * 120}>
+                <article className="team-card team-card--full">
+                  <div className="team-card-ambient" aria-hidden="true" style={{ background: member.avatarGradient }} />
 
-                <div className="team-header">
-                  <div className="team-avatar-wrapper team-avatar-wrapper--lg">
-                    {member.avatar ? (
-                      <img
-                        src={member.avatar}
-                        alt={member.name}
-                        className="team-avatar-img"
-                        onError={e => {
-                          e.currentTarget.style.display = 'none'
-                          if (e.currentTarget.nextElementSibling) {
-                            (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex'
-                          }
-                        }}
-                      />
-                    ) : null}
+                  <div className="team-header">
+                    <div className="team-avatar-wrapper team-avatar-wrapper--lg">
+                      {member.avatar ? (
+                        <img
+                          src={member.avatar}
+                          alt={member.name}
+                          className="team-avatar-img"
+                          onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                            e.currentTarget.style.display = 'none'
+                            if (e.currentTarget.nextElementSibling) {
+                              (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex'
+                            }
+                          }}
+                        />
+                      ) : null}
                     <div
                       className="team-avatar-initials"
                       style={{
